@@ -672,7 +672,13 @@ if (!window.supabase) {
   document.body.innerHTML = '<div style="color:#f07070;font-family:monospace;padding:40px;background:#0f0f0f;min-height:100vh;">Supabase 라이브러리 로딩 실패.<br>페이지를 새로고침 해주세요.</div>';
   throw new Error('Supabase library not loaded');
 }
-const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+  auth: {
+    flowType: 'implicit',
+    detectSessionInUrl: true,
+    persistSession: true
+  }
+});
 let currentUser = null;
 let _saveTimer = null;
 
