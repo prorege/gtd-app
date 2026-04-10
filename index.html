@@ -279,6 +279,7 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;fon
 .tb-block-del{position:absolute;top:5px;right:6px;opacity:0;cursor:pointer;font-size:14px;line-height:1;transition:opacity .15s;}.tb-block:hover .tb-block-del{opacity:.7;}
 .tb-block-chk{position:absolute;top:50%;left:8px;transform:translateY(-50%);font-size:12px;cursor:pointer;opacity:.5;transition:opacity .15s;line-height:1;}.tb-block-chk:hover{opacity:1;}.tb-block-chk.done{opacity:.8;}
 .tb-block-resize{position:absolute;bottom:0;left:0;right:0;height:6px;cursor:s-resize;}.tb-block-resize:hover{background:rgba(128,128,128,.12);}
+.tb-block-resize-top{position:absolute;top:0;left:0;right:0;height:6px;cursor:n-resize;}.tb-block-resize-top:hover{background:rgba(128,128,128,.12);}
 .tb-block.업무{background:rgba(var(--teal-rgb),.13);border-left-color:var(--teal);color:var(--teal);}
 .tb-block.개인{background:rgba(240,196,106,.13);border-left-color:var(--amber);color:var(--amber);}
 .tb-block.교회{background:rgba(var(--purple-rgb),.13);border-left-color:var(--purple);color:var(--purple);}
@@ -515,7 +516,7 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;fon
 </aside>
 
 <main class="main">
-  <div class="ph"><div class="ph-title" id="view-title"><b>호지포지</b><br></div><div class="ph-date" id="ph-date"></div></div>
+  <div class="ph"><div class="ph-title" id="view-title"><b>호지포지</b><br><h6>(머리 속 뒤죽박죽 할 일을 모두 적으세요)</h6></div><div class="ph-date" id="ph-date"></div></div>
 
   <!-- INBOX -->
   <div class="page on" id="page-inbox">
@@ -927,14 +928,118 @@ document.getElementById('fix-input').addEventListener('keydown',e=>{if(e.key==='
 function renderFixList(){const el=document.getElementById('fix-list');el.innerHTML='';if(!fixTasks.length){el.innerHTML='<div class="empty">📌 고정 일정이 없어요.<br><span style="font-size:11px;color:var(--text3);margin-top:6px;display:block">수면, 출근, 점심 등 매일 반복되는 일정을 등록하면 타임 블로킹에서 활용할 수 있어요.</span></div>';return;}fixTasks.forEach(f=>{const d=document.createElement('div');d.className='titem';d.innerHTML=`<div class="tchk" style="border-color:${AREA_CLR[f.area]||'var(--border2)'}">${CHK_SVG}</div><div class="ttxt-wrap" style="flex:1"><div class="ttxt">${f.text}</div></div><div class="ttags"><span class="ttag tc-${f.area}">${f.area}</span><span class="ttag" style="background:rgba(128,128,128,.1);color:var(--text2)">${f.duration}h</span></div><span class="tdel" onclick="delFix('${f.id}',event)">×</span>`;el.appendChild(d);});updateCounts();}
 function delFix(id,e){e.stopPropagation();fixTasks=fixTasks.filter(x=>x.id!==id);blocks=blocks.filter(b=>!(b.isfix&&b.taskId===id));save();renderFixList();if(currentPage==='timeblock'){renderTimeline();renderPanel();}}
 
-const HOURS=[6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23];const SLOT_H=52;
+const HOURS=[6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23];const SLOT_H=52;const SNAP=0.25;const H_START=HOURS[0];
+function snapHour(h){return Math.round(h/SNAP)*SNAP;}
+function hourToY(h){return(h-H_START)*SLOT_H;}
+function yToHour(y){return snapHour(H_START+y/SLOT_H);}
 function getDateStr(off){const d=new Date();d.setDate(d.getDate()+off);return d.toISOString().slice(0,10);}
 function changeDay(d){currentDayOffset+=d;renderTimeline();renderPanel();updateDayLabel();}
 function updateDayLabel(){const d=new Date();d.setDate(d.getDate()+currentDayOffset);const days=['일','월','화','수','목','금','토'];const lbl=currentDayOffset===0?'오늘':currentDayOffset===1?'내일':currentDayOffset===-1?'어제':(d.getMonth()+1)+'월 '+d.getDate()+'일';document.getElementById('day-label').innerHTML=lbl+'<span class="day-sub">'+d.getFullYear()+'.'+String(d.getMonth()+1).padStart(2,'0')+'.'+String(d.getDate()).padStart(2,'0')+' ('+days[d.getDay()]+')</span>';}
 function fmtTime(h){const c=h%24,hh=Math.floor(c),mm=Math.round((c-hh)*60);return String(hh).padStart(2,'0')+':'+String(mm).padStart(2,'0');}
-function renderTimeline(){const tl=document.getElementById('timeline');tl.innerHTML='';const dateStr=getDateStr(currentDayOffset),now=new Date();HOURS.forEach(h=>{const row=document.createElement('div');row.className='tl-row'+(h===now.getHours()&&currentDayOffset===0?' now-row':'');row.style.height=SLOT_H+'px';if(h===now.getHours()&&currentDayOffset===0){const nl=document.createElement('div');nl.className='now-line';nl.style.top=(now.getMinutes()/60*SLOT_H)+'px';row.appendChild(nl);}const hourEl=document.createElement('div');hourEl.className='tl-hour';hourEl.textContent=String(h).padStart(2,'0')+':00';const slot=document.createElement('div');slot.className='tl-slot';slot.dataset.hour=h;slot.dataset.date=dateStr;slot.addEventListener('dragover',e=>{e.preventDefault();slot.classList.add('drag-over');});slot.addEventListener('dragleave',()=>slot.classList.remove('drag-over'));slot.addEventListener('drop',e=>{e.preventDefault();slot.classList.remove('drag-over');if(!dragInfo)return;if(dragInfo.type==='task'||dragInfo.type==='fix')placeBlock(dragInfo.id,dragInfo.type==='fix',h,dateStr,dragInfo.dur);else if(dragInfo.type==='block'){const b=blocks.find(x=>x.id===dragInfo.id);if(b){b.startHour=h;b.date=dateStr;save();}}dragInfo=null;renderTimeline();renderPanel();});slot.addEventListener('click',e=>{if(e.target.closest('.tb-block'))return;if(pendingTaskId!==null){const[isfix,tid]=pendingTaskId;placeBlock(tid,isfix,h,dateStr,isfix?fixTasks.find(f=>f.id===tid)?.duration||1:1);pendingTaskId=null;document.querySelectorAll('.pi.selected').forEach(el=>el.classList.remove('selected'));renderTimeline();renderPanel();}});row.appendChild(hourEl);row.appendChild(slot);tl.appendChild(row);});blocks.filter(b=>b.date===dateStr).forEach(b=>{const obj=b.isfix?fixTasks.find(f=>f.id===b.taskId):tasks.find(t=>t.id===b.taskId);if(!obj)return;const idx=HOURS.indexOf(b.startHour);if(idx===-1)return;const dur=b.duration||1;const blk=document.createElement('div');blk.className='tb-block '+obj.area;blk.style.cssText=`top:${idx*SLOT_H+2}px;height:${dur*SLOT_H-4}px;position:absolute;left:58px;right:4px;${!b.isfix?'padding-left:28px;':''}`;blk.draggable=true;const dLbl=dur<1?(Math.round(dur*60)+'분'):Number.isInteger(dur)?dur+'시간':Math.floor(dur)+'시간 '+Math.round((dur%1)*60)+'분';const isDone=!b.isfix&&tasks.find(t=>t.id===b.taskId)?.done;blk.innerHTML=`${!b.isfix?`<div class="tb-block-chk${isDone?' done':''}" onclick="tbToggleDone('${b.taskId}',event)">${isDone?'✓':'○'}</div>`:''}<div class="tb-block-title"${isDone?' style="text-decoration:line-through;opacity:.5"':''}>${obj.text}</div><div class="tb-block-meta">${fmtTime(b.startHour)} — ${fmtTime(b.startHour+dur)} (${dLbl})</div><div class="tb-block-del" onclick="removeBlock('${b.id}',event)">×</div><div class="tb-block-resize"></div>`;blk.addEventListener('dragstart',e=>{dragInfo={type:'block',id:b.id,origHour:b.startHour,origDate:b.date,dur};e.dataTransfer.effectAllowed='move';});blk.querySelector('.tb-block-resize').addEventListener('mousedown',e=>{e.stopPropagation();e.preventDefault();resizeInfo={blockId:b.id,startY:e.clientY,origDur:dur};});tl.appendChild(blk);});updateDayLabel();}
-document.addEventListener('mousemove',e=>{if(!resizeInfo)return;const nd=Math.max(0.25,Math.round((resizeInfo.origDur+(e.clientY-resizeInfo.startY)/SLOT_H)*4)/4);const b=blocks.find(x=>x.id===resizeInfo.blockId);if(b&&b.duration!==nd){b.duration=nd;renderTimeline();}});
-document.addEventListener('mouseup',()=>{if(resizeInfo){save();resizeInfo=null;}});
+
+let _blockDrag=null,_resizeTop=null;
+
+function renderTimeline(){
+  const tl=document.getElementById('timeline');tl.innerHTML='';const dateStr=getDateStr(currentDayOffset),now=new Date();
+  HOURS.forEach(h=>{
+    const row=document.createElement('div');row.className='tl-row'+(h===now.getHours()&&currentDayOffset===0?' now-row':'');row.style.height=SLOT_H+'px';
+    if(h===now.getHours()&&currentDayOffset===0){const nl=document.createElement('div');nl.className='now-line';nl.style.top=(now.getMinutes()/60*SLOT_H)+'px';row.appendChild(nl);}
+    const hourEl=document.createElement('div');hourEl.className='tl-hour';hourEl.textContent=String(h).padStart(2,'0')+':00';
+    const slot=document.createElement('div');slot.className='tl-slot';slot.dataset.hour=h;slot.dataset.date=dateStr;
+    slot.addEventListener('dragover',e=>{e.preventDefault();slot.classList.add('drag-over');});
+    slot.addEventListener('dragleave',()=>slot.classList.remove('drag-over'));
+    slot.addEventListener('drop',e=>{
+      e.preventDefault();slot.classList.remove('drag-over');if(!dragInfo)return;
+      const rect=slot.getBoundingClientRect();const frac=Math.min(Math.floor((e.clientY-rect.top)/(SLOT_H/4))*SNAP,0.75);
+      const actualH=h+frac;
+      if(dragInfo.type==='task'||dragInfo.type==='fix')placeBlock(dragInfo.id,dragInfo.type==='fix',actualH,dateStr,dragInfo.dur);
+      else if(dragInfo.type==='block'){const b=blocks.find(x=>x.id===dragInfo.id);if(b){b.startHour=actualH;b.date=dateStr;save();}}
+      dragInfo=null;renderTimeline();renderPanel();
+    });
+    slot.addEventListener('click',e=>{
+      if(e.target.closest('.tb-block'))return;
+      if(pendingTaskId!==null){
+        const rect=slot.getBoundingClientRect();const frac=Math.min(Math.floor((e.clientY-rect.top)/(SLOT_H/4))*SNAP,0.75);
+        const actualH=h+frac;
+        const[isfix,tid]=pendingTaskId;
+        placeBlock(tid,isfix,actualH,dateStr,isfix?fixTasks.find(f=>f.id===tid)?.duration||1:1);
+        pendingTaskId=null;document.querySelectorAll('.pi.selected').forEach(el=>el.classList.remove('selected'));
+        renderTimeline();renderPanel();
+      }
+    });
+    row.appendChild(hourEl);row.appendChild(slot);tl.appendChild(row);
+  });
+
+  blocks.filter(b=>b.date===dateStr).forEach(b=>{
+    const obj=b.isfix?fixTasks.find(f=>f.id===b.taskId):tasks.find(t=>t.id===b.taskId);if(!obj)return;
+    const sh=b.startHour;if(sh<H_START||sh>=HOURS[HOURS.length-1]+1)return;
+    const dur=b.duration||1;
+    const topPx=hourToY(sh)+2;const hPx=dur*SLOT_H-4;
+    const blk=document.createElement('div');blk.className='tb-block '+obj.area;
+    blk.style.cssText=`top:${topPx}px;height:${Math.max(hPx,10)}px;position:absolute;left:58px;right:4px;${!b.isfix?'padding-left:28px;':''}`;
+    const dLbl=dur<1?(Math.round(dur*60)+'분'):Number.isInteger(dur)?dur+'시간':Math.floor(dur)+'시간 '+Math.round((dur%1)*60)+'분';
+    const isDone=!b.isfix&&tasks.find(t=>t.id===b.taskId)?.done;
+    blk.innerHTML=`<div class="tb-block-resize-top"></div>${!b.isfix?`<div class="tb-block-chk${isDone?' done':''}" onclick="tbToggleDone('${b.taskId}',event)">${isDone?'✓':'○'}</div>`:''}<div class="tb-block-title"${isDone?' style="text-decoration:line-through;opacity:.5"':''}>${obj.text}</div><div class="tb-block-meta">${fmtTime(sh)} — ${fmtTime(sh+dur)} (${dLbl})</div><div class="tb-block-del" onclick="removeBlock('${b.id}',event)">×</div><div class="tb-block-resize"></div>`;
+
+    // Block move (mousedown on body, not handles)
+    blk.addEventListener('mousedown',e=>{
+      if(e.target.closest('.tb-block-resize')||e.target.closest('.tb-block-resize-top')||e.target.closest('.tb-block-del')||e.target.closest('.tb-block-chk'))return;
+      e.preventDefault();
+      _blockDrag={blockId:b.id,startY:e.clientY,origHour:sh,origDur:dur};
+      blk.style.opacity='.7';blk.style.cursor='grabbing';
+    });
+    // Bottom resize
+    blk.querySelector('.tb-block-resize').addEventListener('mousedown',e=>{
+      e.stopPropagation();e.preventDefault();
+      resizeInfo={blockId:b.id,startY:e.clientY,origDur:dur};
+    });
+    // Top resize
+    blk.querySelector('.tb-block-resize-top').addEventListener('mousedown',e=>{
+      e.stopPropagation();e.preventDefault();
+      _resizeTop={blockId:b.id,startY:e.clientY,origHour:sh,origDur:dur};
+    });
+    // Keep HTML5 drag for panel→timeline drops only
+    blk.draggable=false;
+    tl.appendChild(blk);
+  });
+  updateDayLabel();
+}
+
+document.addEventListener('mousemove',e=>{
+  // Bottom resize
+  if(resizeInfo){
+    const nd=Math.max(SNAP,snapHour(resizeInfo.origDur+(e.clientY-resizeInfo.startY)/SLOT_H));
+    const b=blocks.find(x=>x.id===resizeInfo.blockId);
+    if(b&&b.duration!==nd){b.duration=nd;renderTimeline();}
+    return;
+  }
+  // Top resize
+  if(_resizeTop){
+    const delta=(e.clientY-_resizeTop.startY)/SLOT_H;
+    const newStart=snapHour(_resizeTop.origHour+delta);
+    const newDur=snapHour(_resizeTop.origDur-delta);
+    if(newDur>=SNAP&&newStart>=H_START){
+      const b=blocks.find(x=>x.id===_resizeTop.blockId);
+      if(b&&(b.startHour!==newStart||b.duration!==newDur)){b.startHour=newStart;b.duration=newDur;renderTimeline();}
+    }
+    return;
+  }
+  // Block move
+  if(_blockDrag){
+    const delta=(e.clientY-_blockDrag.startY)/SLOT_H;
+    const newStart=snapHour(_blockDrag.origHour+delta);
+    if(newStart>=H_START&&newStart+_blockDrag.origDur<=HOURS[HOURS.length-1]+1){
+      const b=blocks.find(x=>x.id===_blockDrag.blockId);
+      if(b&&b.startHour!==newStart){b.startHour=newStart;renderTimeline();}
+    }
+    return;
+  }
+});
+document.addEventListener('mouseup',()=>{
+  if(resizeInfo){save();resizeInfo=null;}
+  if(_resizeTop){save();_resizeTop=null;}
+  if(_blockDrag){save();_blockDrag=null;}
+});
 function placeBlock(taskId,isfix,startHour,date,duration){blocks=blocks.filter(b=>!(b.taskId===taskId&&b.isfix===isfix&&b.date===date));blocks.push({id:'b'+Date.now(),taskId,isfix:!!isfix,startHour,date,duration:duration||1});save();}
 function removeBlock(id,e){e.stopPropagation();blocks=blocks.filter(b=>b.id!==id);save();renderTimeline();renderPanel();}
 function tbToggleDone(taskId,e){e.stopPropagation();const t=tasks.find(x=>x.id===taskId);if(t){t.done=!t.done;save();renderTimeline();renderPanel();renderTasks();if(currentPage==='projects')renderProjects();}}
