@@ -489,7 +489,7 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;fon
 <div class="modal-backdrop" id="link-modal">
   <div class="modal">
     <div class="modal-head">
-      <span class="modal-head-title">받은함에서 태스크 연결</span>
+      <span class="modal-head-title">호지포지에서 태스크 연결</span>
       <span class="modal-close" onclick="closeModal()">×</span>
     </div>
     <div class="modal-search">
@@ -503,8 +503,10 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;fon
 <!-- ══ AUTH OVERLAY ══ -->
 <div class="auth-overlay" id="auth-overlay">
   <div class="auth-box">
-    <div class="auth-logo">GTD<em>/</em>v5</div>
-    <div class="auth-sub">나만의 GTD 플랫폼에 로그인하세요</div>
+    <div class="auth-logo">HodgePodge<em> <br>inspired by <br></em>GTD</div>
+    <br><hr><br><br>
+    <div class="auth-sub">호지포지는 GTD방식, 할 일을 '실행 가능한 작업'으로 분해하고, 그 과정 전체를 체계적으로 관리하는 시스템입니다.</div>
+    <div class="auth-sub">뇌를 기억하는 도구로 사용하지 말고, 생각하는 도구로 사용하세요.</div>
     <button class="auth-btn" id="google-login-btn" onclick="loginWithGoogle()">
       <svg viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59A14.5 14.5 0 019.5 24c0-1.59.28-3.14.76-4.59l-7.98-6.19A23.998 23.998 0 000 24c0 3.77.9 7.35 2.56 10.52l7.97-5.93z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 5.93C6.51 42.62 14.62 48 24 48z"/></svg>
       Google로 로그인
@@ -522,7 +524,7 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;fon
   <div class="nav-grp">
     <div class="nav-lbl">뷰</div>
     <div class="nav-item on" onclick="showPage('inbox',this)">
-      <span class="ndot" style="background:var(--amber)"></span>받은함
+      <span class="ndot" style="background:var(--amber)"></span>호지포지
       <span class="nbadge" id="nb-inbox">0</span>
     </div>
     <div class="nav-item" onclick="showPage('projects',this)">
@@ -556,7 +558,11 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;fon
 
 <main class="main">
   <div class="ph">
-    <div class="ph-title" id="view-title"><b>받은함</b></div>
+    <div class="ph-title" id="view-title">
+      <b>호지포지</b>
+      <br>
+      <h6>(머리 속 뒤죽박죽 할 일을 모두 적으세요)</h6>
+    </div>
     <div class="ph-date" id="ph-date"></div>
   </div>
 
@@ -619,7 +625,7 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;fon
     </div>
     <div>
       <div class="sec-hd">
-        <div class="sec-title" id="list-lbl">받은함</div>
+        <div class="sec-title" id="list-lbl">호지포지</div>
         <div class="sec-act" onclick="clearDone()">완료 지우기</div>
       </div>
       <div class="tasklist" id="task-list"></div>
@@ -659,7 +665,7 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;fon
 
   <!-- ══ SOMEDAY / MAYBE ══ -->
   <div class="page" id="page-someday">
-    <div class="someday-note">언젠가는 하고 싶지만 지금 당장은 아닌 것들. 받은함을 오염시키지 않고 아이디어를 보관해요. 주간 리뷰 때 한 번씩 훑어보세요.</div>
+    <div class="someday-note">언젠가는 하고 싶지만 지금 당장은 아닌 것들. 호지포지를 오염시키지 않고 아이디어를 보관해요. 주간 리뷰 때 한 번씩 훑어보세요.</div>
     <div class="sd-capture">
       <input class="sd-input" id="sd-input" placeholder="아이디어, 해보고 싶은 것들..." autocomplete="off"/>
       <button class="sd-add-btn" onclick="addSomeday()">+ 추가</button>
@@ -908,7 +914,7 @@ function showPage(p,el){
   document.querySelectorAll('.nav-item').forEach(x=>x.classList.remove('on'));
   if(el) el.classList.add('on');
   currentPage=p;
-  const titles={inbox:'받은함',projects:'프로젝트',someday:'Someday / Maybe',fix:'FIX — 고정 일정',timeblock:'타임 블로킹',review:'주간 리뷰'};
+  const titles={inbox:'호지포지',projects:'프로젝트',someday:'Someday / Maybe',fix:'FIX — 고정 일정',timeblock:'타임 블로킹',review:'주간 리뷰'};
   document.getElementById('view-title').innerHTML='<b>'+(titles[p]||p)+'</b>';
   closeDetail();
   if(p==='inbox'){updateFilterReset();renderTasks();}
@@ -940,7 +946,7 @@ function resetFilter(){
 function updateFilterReset(){
   const active=filterAreas.length||filterTimes.length;
   document.getElementById('filter-reset').classList.toggle('visible',!!active);
-  document.getElementById('list-lbl').textContent=active?[...filterAreas,...filterTimes].join(' · '):'받은함';
+  document.getElementById('list-lbl').textContent=active?[...filterAreas,...filterTimes].join(' · '):'호지포지';
 }
 
 /* ════════ CHIPS ════════ */
@@ -1070,7 +1076,7 @@ function openDetail(id, source){
     document.getElementById('dp-someday-btn').style.display='block';
   } else {
     tagsEl.innerHTML=`<span class="ttag" style="background:rgba(179,157,250,.1);color:var(--purple)">Someday</span>`;
-    document.getElementById('dp-someday-btn').textContent='⇢ 받은함으로 이동';
+    document.getElementById('dp-someday-btn').textContent='⇢ 호지포지로 이동';
     document.getElementById('dp-someday-btn').style.display='block';
   }
   document.getElementById('dp-link').oninput=()=>updateLinkPreview(document.getElementById('dp-link').value);
@@ -1133,7 +1139,7 @@ document.getElementById('sd-input').addEventListener('keydown',e=>{if(e.key==='E
 function renderSomeday(){
   const el=document.getElementById('someday-list');
   el.innerHTML='';
-  if(!someday.length){el.innerHTML='<div class="empty">아직 없어요. 받은함 태스크를 여기로 옮기거나 직접 추가해 보세요.</div>';return;}
+  if(!someday.length){el.innerHTML='<div class="empty">아직 없어요. 호지포지 태스크를 여기로 옮기거나 직접 추가해 보세요.</div>';return;}
   someday.forEach(s=>{
     const ex=taskExtras[s.id]||{};
     const d=document.createElement('div');d.className='sd-item';
@@ -1143,7 +1149,7 @@ function renderSomeday(){
         <div class="sd-txt">${s.text}</div>
         ${ex.memo?`<div class="sd-memo-preview">${ex.memo.slice(0,60)}${ex.memo.length>60?'…':''}</div>`:''}
       </div>
-      <button class="sd-promote" onclick="promoteToInbox('${s.id}',event)">→ 받은함</button>
+      <button class="sd-promote" onclick="promoteToInbox('${s.id}',event)">→ 호지포지</button>
       <span class="sd-del" onclick="delSomeday('${s.id}',event)">×</span>`;
     d.addEventListener('click',e=>{if(!e.target.closest('.sd-promote')&&!e.target.closest('.sd-del'))openDetail(s.id,'someday');});
     el.appendChild(d);
@@ -1221,7 +1227,7 @@ function buildProjCard(proj){
       <div class="ptask-add">
         <input class="ptask-add-input" placeholder="새 태스크 추가..." id="ptask-inp-${proj.id}" onkeydown="if(event.key==='Enter')addProjTask('${proj.id}')"/>
         <button class="ptask-add-btn" onclick="addProjTask('${proj.id}')">추가</button>
-        <button class="ptask-add-btn" onclick="openLinkModal('${proj.id}')" style="color:var(--blue);border-color:rgba(122,180,245,.25)">받은함 연결</button>
+        <button class="ptask-add-btn" onclick="openLinkModal('${proj.id}')" style="color:var(--blue);border-color:rgba(122,180,245,.25)">호지포지 연결</button>
       </div>
       <div class="proj-stat-row">
         <span class="ps-chip">${done}/${total} 완료</span>
@@ -1419,11 +1425,11 @@ function renderPanel(){
 /* ════════ WEEKLY REVIEW ════════ */
 const WR_STEPS=[
   {
-    key:'inbox',title:'받은함 비우기',
-    desc:'받은함의 모든 항목을 처리하세요. 완료된 것은 체크, 언젠가 할 것은 Someday로, 지금은 불필요한 것은 삭제해요.',
+    key:'inbox',title:'호지포지 비우기',
+    desc:'호지포지의 모든 항목을 처리하세요. 완료된 것은 체크, 언젠가 할 것은 Someday로, 지금은 불필요한 것은 삭제해요.',
     render:(body)=>{
       const pending=tasks.filter(t=>!t.done);
-      if(!pending.length){body.innerHTML+='<div style="font-size:12px;color:var(--green);padding:10px 0">✓ 받은함이 깨끗해요!</div>';return;}
+      if(!pending.length){body.innerHTML+='<div style="font-size:12px;color:var(--green);padding:10px 0">✓ 호지포지 깨끗해요!</div>';return;}
       const list=document.createElement('div');list.className='wr-task-review';
       pending.slice(0,8).forEach(t=>{
         const row=document.createElement('div');row.className='wr-trow';
@@ -1458,7 +1464,7 @@ const WR_STEPS=[
   },
   {
     key:'someday',title:'Someday 검토',
-    desc:'Someday 목록을 훑어보고 지금 받은함으로 올릴 것이 있는지 확인하세요.',
+    desc:'Someday 목록을 훑어보고 지금 호지포지로 올릴 것이 있는지 확인하세요.',
     render:(body)=>{
       if(!someday.length){body.innerHTML+='<div style="font-size:12px;color:var(--text3);padding:10px 0">Someday 항목이 없어요.</div>';return;}
       const list=document.createElement('div');list.className='wr-task-review';
@@ -1466,7 +1472,7 @@ const WR_STEPS=[
         const row=document.createElement('div');row.className='wr-trow';
         row.innerHTML=`<span class="wr-trow-txt">${s.text}</span>
           <div class="wr-trow-action">
-            <button class="wr-btn-sm done-s" onclick="wrPromoteSomeday('${s.id}',this)">→ 받은함</button>
+            <button class="wr-btn-sm done-s" onclick="wrPromoteSomeday('${s.id}',this)">→ 호지포지</button>
             <button class="wr-btn-sm" onclick="wrDelSomeday('${s.id}',this)" style="color:var(--red);border-color:rgba(240,112,112,.3)">삭제</button>
           </div>`;
         list.appendChild(row);
