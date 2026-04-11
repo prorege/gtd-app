@@ -795,10 +795,38 @@ const SUPABASE_URL='https://vmfovvmxrsxxmuntvupd.supabase.co';
 const SUPABASE_ANON_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZtZm92dm14cnN4eG11bnR2dXBkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU3MjA4ODYsImV4cCI6MjA5MTI5Njg4Nn0.dYuhfXg0AcmuW8_pHyT_o5LOfdCWfg2vkPUxqH1hJ9Y';
 if(!window.supabase){document.body.innerHTML='<div style="color:#f07070;font-family:monospace;padding:40px;background:#0f0f0f;min-height:100vh;">Supabase 라이브러리 로딩 실패.<br>페이지를 새로고침 해주세요.</div>';throw new Error('Supabase library not loaded');}
 const supabase=window.supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY,{auth:{flowType:'implicit',detectSessionInUrl:true,persistSession:true,lock:async(name,acquireTimeout,fn)=>fn()}});
+/* Force-release internal auth mutex so DB calls don't hang */
+try{supabase.auth.lockAcquired=false;supabase.auth.pendingInLock=null;}catch(e){}
 let currentUser=null;let _saveTimer=null;
+const SB_STORAGE_KEY='sb-'+SUPABASE_URL.split('//')[1].split('.')[0]+'-auth-token';
+
+/* Direct REST helper — bypasses Supabase client lock entirely */
+function _getToken(){
+  const stored=localStorage.getItem(SB_STORAGE_KEY);
+  if(!stored)return SUPABASE_ANON_KEY;
+  try{const p=JSON.parse(stored);return p.access_token||SUPABASE_ANON_KEY;}catch(e){return SUPABASE_ANON_KEY;}
+}
+async function sbRest(method,path,body){
+  const token=_getToken();
+  const headers={'apikey':SUPABASE_ANON_KEY,'Authorization':'Bearer '+token,'Content-Type':'application/json','Prefer':method==='POST'?'return=representation':'return=minimal'};
+  if(method==='GET')headers['Accept']='application/vnd.pgrst.object+json';
+  const res=await fetch(SUPABASE_URL+'/rest/v1/'+path,{method,headers,body:body?JSON.stringify(body):undefined});
+  /* 401 = token expired, try refresh from localStorage (onAuthStateChange may have updated it) */
+  if(res.status===401){
+    const freshToken=_getToken();
+    if(freshToken!==token){
+      headers['Authorization']='Bearer '+freshToken;
+      const retry=await fetch(SUPABASE_URL+'/rest/v1/'+path,{method,headers,body:body?JSON.stringify(body):undefined});
+      if(!retry.ok){const txt=await retry.text();return{data:null,error:{code:String(retry.status),message:txt}};}
+      const txt2=await retry.text();return{data:txt2?JSON.parse(txt2):null,error:null};
+    }
+  }
+  if(!res.ok){const txt=await res.text();return{data:null,error:{code:res.status===406?'PGRST116':String(res.status),message:txt}};}
+  const text=await res.text();return{data:text?JSON.parse(text):null,error:null};
+}
 
 async function loginWithGoogle(){document.getElementById('auth-loading').style.display='block';document.getElementById('google-login-btn').style.display='none';const{error}=await supabase.auth.signInWithOAuth({provider:'google',options:{redirectTo:window.location.origin+window.location.pathname}});if(error){alert('로그인 오류: '+error.message);document.getElementById('auth-loading').style.display='none';document.getElementById('google-login-btn').style.display='inline-flex';}}
-async function logoutUser(){const storageKey='sb-'+SUPABASE_URL.split('//')[1].split('.')[0]+'-auth-token';localStorage.removeItem(storageKey);currentUser=null;window.location.reload();}
+async function logoutUser(){localStorage.removeItem(SB_STORAGE_KEY);currentUser=null;window.location.reload();}
 function showUserProfile(user){const meta=user.user_metadata||{};document.getElementById('user-avatar').src=meta.avatar_url||'';document.getElementById('user-name').textContent=meta.full_name||meta.name||'사용자';document.getElementById('user-email').textContent=user.email||'';document.getElementById('user-profile').style.display='flex';}
 
 let tasks=[],fixTasks=[],blocks=[],projects=[],someday=[];let taskExtras={},lastReview='';
@@ -810,8 +838,26 @@ const DEFAULT_TASKS=[{id:'1',text:'팀장님 보고서 제출',area:'업무',tim
 const DEFAULT_FIX=[{id:'f1',text:'수면',area:'루틴',duration:8},{id:'f2',text:'아침 루틴',area:'루틴',duration:1},{id:'f3',text:'팀 스탠드업',area:'업무',duration:1},{id:'f4',text:'점심 식사',area:'루틴',duration:1}];
 const DEFAULT_PROJECTS=[{id:'p1',name:'분기 기획 프로젝트',area:'업무',due:'2026-04-30',done:false,taskIds:['2'],nextActionId:'2'},{id:'p2',name:'헬스 루틴 정착',area:'개인',due:'',done:false,taskIds:['5'],nextActionId:'5'}];
 
-async function loadFromCloud(){const{data,error}=await supabase.from('user_data').select('*').eq('user_id',currentUser.id).single();if(error&&error.code==='PGRST116'){tasks=JSON.parse(JSON.stringify(DEFAULT_TASKS));fixTasks=JSON.parse(JSON.stringify(DEFAULT_FIX));projects=JSON.parse(JSON.stringify(DEFAULT_PROJECTS));blocks=[];someday=[];taskExtras={};lastReview='';await supabase.from('user_data').insert({user_id:currentUser.id,tasks,fix_tasks:fixTasks,blocks,projects,someday,task_extras:taskExtras,last_review:lastReview,wr_upcoming:'',wr_retro:''});}else if(data){tasks=data.tasks||[];fixTasks=data.fix_tasks||[];blocks=data.blocks||[];projects=data.projects||[];someday=data.someday||[];taskExtras=data.task_extras||{};lastReview=data.last_review||'';}}
-function save(){localStorage.setItem('gtd5-tasks',JSON.stringify(tasks));localStorage.setItem('gtd5-fix',JSON.stringify(fixTasks));localStorage.setItem('gtd5-blocks',JSON.stringify(blocks));localStorage.setItem('gtd5-projects',JSON.stringify(projects));localStorage.setItem('gtd5-someday',JSON.stringify(someday));localStorage.setItem('gtd5-extras',JSON.stringify(taskExtras));if(!currentUser)return;clearTimeout(_saveTimer);_saveTimer=setTimeout(()=>{supabase.from('user_data').update({tasks,fix_tasks:fixTasks,blocks,projects,someday,task_extras:taskExtras,last_review:lastReview}).eq('user_id',currentUser.id).then(({error})=>{if(error)console.warn('Save error:',error.message);});},500);}
+async function loadFromCloud(){
+  try{
+    const{data,error}=await sbRest('GET','user_data?user_id=eq.'+currentUser.id+'&select=*');
+    if(error&&error.code==='PGRST116'){
+      tasks=JSON.parse(JSON.stringify(DEFAULT_TASKS));fixTasks=JSON.parse(JSON.stringify(DEFAULT_FIX));projects=JSON.parse(JSON.stringify(DEFAULT_PROJECTS));blocks=[];someday=[];taskExtras={};lastReview='';
+      const ins=await sbRest('POST','user_data',{user_id:currentUser.id,tasks,fix_tasks:fixTasks,blocks,projects,someday,task_extras:taskExtras,last_review:lastReview,wr_upcoming:'',wr_retro:''});
+      if(ins.error)await sbRest('PATCH','user_data?user_id=eq.'+currentUser.id,{tasks,fix_tasks:fixTasks,blocks,projects,someday,task_extras:taskExtras,last_review:lastReview});
+    }else if(error){
+      console.error('loadFromCloud error:',error.message);
+      /* fallback to localStorage */
+      tasks=JSON.parse(localStorage.getItem('gtd5-tasks')||'[]');fixTasks=JSON.parse(localStorage.getItem('gtd5-fix')||'[]');blocks=JSON.parse(localStorage.getItem('gtd5-blocks')||'[]');projects=JSON.parse(localStorage.getItem('gtd5-projects')||'[]');someday=JSON.parse(localStorage.getItem('gtd5-someday')||'[]');taskExtras=JSON.parse(localStorage.getItem('gtd5-extras')||'{}');
+    }else if(data){
+      tasks=data.tasks||[];fixTasks=data.fix_tasks||[];blocks=data.blocks||[];projects=data.projects||[];someday=data.someday||[];taskExtras=data.task_extras||{};lastReview=data.last_review||'';
+    }
+  }catch(e){
+    console.error('loadFromCloud exception:',e);
+    tasks=JSON.parse(localStorage.getItem('gtd5-tasks')||'[]');fixTasks=JSON.parse(localStorage.getItem('gtd5-fix')||'[]');blocks=JSON.parse(localStorage.getItem('gtd5-blocks')||'[]');projects=JSON.parse(localStorage.getItem('gtd5-projects')||'[]');someday=JSON.parse(localStorage.getItem('gtd5-someday')||'[]');taskExtras=JSON.parse(localStorage.getItem('gtd5-extras')||'{}');
+  }
+}
+function save(){localStorage.setItem('gtd5-tasks',JSON.stringify(tasks));localStorage.setItem('gtd5-fix',JSON.stringify(fixTasks));localStorage.setItem('gtd5-blocks',JSON.stringify(blocks));localStorage.setItem('gtd5-projects',JSON.stringify(projects));localStorage.setItem('gtd5-someday',JSON.stringify(someday));localStorage.setItem('gtd5-extras',JSON.stringify(taskExtras));if(!currentUser)return;clearTimeout(_saveTimer);_saveTimer=setTimeout(()=>{sbRest('PATCH','user_data?user_id=eq.'+currentUser.id,{tasks,fix_tasks:fixTasks,blocks,projects,someday,task_extras:taskExtras,last_review:lastReview}).then(({error})=>{if(error)console.warn('Save error:',error.message);});},500);}
 
 const AREA_CLR={업무:'var(--teal)',개인:'var(--amber)',교회:'var(--purple)',루틴:'var(--pink)'};
 function getAreaHex(area){const p=THEMES[_ct]?.[_cm];if(!p)return'#888';const map={업무:p['--teal'],개인:p['--amber'],교회:p['--purple'],루틴:p['--pink']};return map[area]||'#888';}
@@ -1050,12 +1096,12 @@ function renderReview(){const lr=document.getElementById('wr-last-date');lr.text
 function advanceWr(i){if(wrStep<=i)wrStep=i+1;save();updateWrProgress();renderReview();setTimeout(()=>document.getElementById('wr-step-'+(i+1))?.scrollIntoView({behavior:'smooth',block:'center'}),100);}
 function jumpWrStep(i){if(i<=wrStep){wrStep=i;save();renderReview();}}
 function updateWrProgress(){const pct=Math.round(wrStep/WR_STEPS.length*100);document.getElementById('wr-bar').style.width=pct+'%';document.getElementById('wr-bar-lbl').textContent=`${wrStep} / ${WR_STEPS.length} 단계 완료`;}
-function finishReview(){const now=new Date();lastReview=now.getFullYear()+'.'+String(now.getMonth()+1).padStart(2,'0')+'.'+String(now.getDate()).padStart(2,'0');localStorage.setItem('gtd5-last-review',lastReview);wrStep=0;wrDone=true;save();if(currentUser)supabase.from('user_data').update({last_review:lastReview,wr_upcoming:'',wr_retro:''}).eq('user_id',currentUser.id);localStorage.removeItem('gtd5-wr-upcoming');localStorage.removeItem('gtd5-wr-retro');renderReview();updateCounts();}
+function finishReview(){const now=new Date();lastReview=now.getFullYear()+'.'+String(now.getMonth()+1).padStart(2,'0')+'.'+String(now.getDate()).padStart(2,'0');localStorage.setItem('gtd5-last-review',lastReview);wrStep=0;wrDone=true;save();if(currentUser)sbRest('PATCH','user_data?user_id=eq.'+currentUser.id,{last_review:lastReview,wr_upcoming:'',wr_retro:''});localStorage.removeItem('gtd5-wr-upcoming');localStorage.removeItem('gtd5-wr-retro');renderReview();updateCounts();}
 function wrDoneTask(id,btn){const t=tasks.find(x=>x.id===id);if(t){t.done=true;save();}const row=btn.closest('.wr-trow');row.style.opacity='.35';row.querySelectorAll('button').forEach(b=>b.disabled=true);btn.textContent='완료됨';}
 function wrToSomeday(id,btn){const t=tasks.find(x=>x.id===id);if(!t)return;someday.push({id:t.id,text:t.text,area:t.area,times:[...t.times]});tasks=tasks.filter(x=>x.id!==id);blocks=blocks.filter(b=>b.taskId!==id);projects.forEach(p=>{p.taskIds=p.taskIds.filter(x=>x!==id);if(p.nextActionId===id)p.nextActionId=p.taskIds[0]||null;});save();updateCounts();const row=btn.closest('.wr-trow');row.style.opacity='.35';row.querySelectorAll('button').forEach(b=>b.disabled=true);btn.textContent='이동됨';}
 function wrPromoteSomeday(id,btn){const s=someday.find(x=>x.id===id);if(!s)return;tasks.unshift({id:s.id,text:s.text,area:s.area||'개인',times:s.times||['이번주'],done:false});someday=someday.filter(x=>x.id!==id);save();updateCounts();const row=btn.closest('.wr-trow');row.style.opacity='.35';row.querySelectorAll('button').forEach(b=>b.disabled=true);btn.textContent='이동됨';}
 function wrDelSomeday(id,btn){someday=someday.filter(x=>x.id!==id);save();updateCounts();const row=btn.closest('.wr-trow');row.style.opacity='.35';row.querySelectorAll('button').forEach(b=>b.disabled=true);}
-let _wrTimer=null;function saveWrField(field,value){if(!currentUser)return;clearTimeout(_wrTimer);_wrTimer=setTimeout(()=>{supabase.from('user_data').update({[field]:value}).eq('user_id',currentUser.id).then(({error})=>{if(error)console.warn('WR save error:',error.message);});},500);}
+let _wrTimer=null;function saveWrField(field,value){if(!currentUser)return;clearTimeout(_wrTimer);_wrTimer=setTimeout(()=>{sbRest('PATCH','user_data?user_id=eq.'+currentUser.id,{[field]:value}).then(({error})=>{if(error)console.warn('WR save error:',error.message);});},500);}
 
 function initApp(){const _d=new Date();document.getElementById('ph-date').textContent=_d.getFullYear()+'.'+String(_d.getMonth()+1).padStart(2,'0')+'.'+String(_d.getDate()).padStart(2,'0');renderTasks();updateStats();updateCounts();updateDayLabel();restoreHints();if(!localStorage.getItem('hp-onboard-done'))showOnboarding();}
 
@@ -1084,8 +1130,31 @@ function closeOnboarding(){document.getElementById('onboard-overlay').style.disp
 function dismissHint(page){const el=document.getElementById('hint-'+page);if(el)el.style.display='none';const dismissed=JSON.parse(localStorage.getItem('hp-hints-dismissed')||'[]');if(!dismissed.includes(page)){dismissed.push(page);localStorage.setItem('hp-hints-dismissed',JSON.stringify(dismissed));}}
 function restoreHints(){const dismissed=JSON.parse(localStorage.getItem('hp-hints-dismissed')||'[]');dismissed.forEach(p=>{const el=document.getElementById('hint-'+p);if(el)el.style.display='none';});}
 function toggleMFaq(el){el.classList.toggle('open');}
-supabase.auth.onAuthStateChange(async(event,session)=>{if(session&&session.user){currentUser=session.user;showUserProfile(currentUser);document.getElementById('auth-overlay').classList.add('hidden');await loadFromCloud();initApp();}else{currentUser=null;document.getElementById('auth-overlay').classList.remove('hidden');document.getElementById('user-profile').style.display='none';}});
-(function(){const storageKey='sb-'+SUPABASE_URL.split('//')[1].split('.')[0]+'-auth-token';const stored=localStorage.getItem(storageKey);if(!stored)document.getElementById('auth-overlay').classList.remove('hidden');})();
+let _authInit=false;
+supabase.auth.onAuthStateChange(async(event,session)=>{
+  if(session&&session.user){
+    if(_authInit&&currentUser&&currentUser.id===session.user.id)return;
+    _authInit=true;currentUser=session.user;
+    showUserProfile(currentUser);document.getElementById('auth-overlay').classList.add('hidden');
+    await loadFromCloud();initApp();
+  }else{
+    _authInit=false;currentUser=null;
+    document.getElementById('auth-overlay').classList.remove('hidden');document.getElementById('user-profile').style.display='none';
+  }
+});
+/* Fast session bootstrap from localStorage */
+(function(){
+  const stored=localStorage.getItem(SB_STORAGE_KEY);
+  if(!stored){document.getElementById('auth-overlay').classList.remove('hidden');return;}
+  try{
+    const parsed=JSON.parse(stored);
+    if(parsed.user&&parsed.access_token){
+      currentUser=parsed.user;_authInit=true;
+      showUserProfile(currentUser);document.getElementById('auth-overlay').classList.add('hidden');
+      loadFromCloud().then(()=>initApp()).catch(e=>console.error('Bootstrap error:',e));
+    }else{document.getElementById('auth-overlay').classList.remove('hidden');}
+  }catch(e){document.getElementById('auth-overlay').classList.remove('hidden');}
+})();
 </script>
 </body>
 </html>
